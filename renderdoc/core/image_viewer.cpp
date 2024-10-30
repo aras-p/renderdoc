@@ -758,10 +758,14 @@ void ImageViewer::RefreshFile()
       return;
     }
 
+    // Expect R/G/B/A channel names as first char of the string, or
+    // after the last '.' char.
     int channels[4] = {-1, -1, -1, -1};
     for(int i = 0; i < exrImage.num_channels; i++)
     {
-      switch(exrHeader.channels[i].name[0])
+      const char *dotPos = strrchr(exrHeader.channels[i].name, '.');
+      const char *name = dotPos ? dotPos + 1 : exrHeader.channels[i].name;
+      switch(name[0])
       {
         case 'R': channels[0] = i; break;
         case 'G': channels[1] = i; break;
