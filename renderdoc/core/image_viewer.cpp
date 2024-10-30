@@ -469,13 +469,6 @@ RDResult IMG_CreateReplayDevice(RDCFile *rdc, IReplayDriver **driver)
                           "Unsupported EXR file detected - deep image EXR.");
     }
 
-    if(exrVersion.tiled)
-    {
-      FileIO::fclose(f);
-      RETURN_ERROR_RESULT(ResultCode::ImageUnsupported,
-                          "Unsupported EXR file detected - tiled EXR.");
-    }
-
     EXRHeader exrHeader;
     InitEXRHeader(&exrHeader);
 
@@ -690,14 +683,6 @@ void ImageViewer::RefreshFile()
       return;
     }
 
-    if(exrVersion.tiled)
-    {
-      SET_ERROR_RESULT(m_Error, ResultCode::ImageUnsupported,
-                       "Unsupported EXR file detected - tiled EXR.");
-      FileIO::fclose(f);
-      return;
-    }
-
     EXRHeader exrHeader;
     InitEXRHeader(&exrHeader);
 
@@ -786,18 +771,65 @@ void ImageViewer::RefreshFile()
     }
 
     float *rgba = (float *)data;
-    float **src = (float **)exrImage.images;
 
-    for(uint32_t i = 0; i < texDetails.width * texDetails.height; i++)
+    if(exrImage.images != NULL)
     {
-      for(int c = 0; c < 4; c++)
+      // scanline image
+      float **src = (float **)exrImage.images;
+
+      for(uint32_t i = 0; i < texDetails.width * texDetails.height; i++)
       {
-        if(channels[c] >= 0)
-          rgba[i * 4 + c] = src[channels[c]][i];
-        else if(c < 3)    // RGB channels default to 0
-          rgba[i * 4 + c] = 0.0f;
-        else    // alpha defaults to 1
-          rgba[i * 4 + c] = 1.0f;
+        for(int c = 0; c < 4; c++)
+        {
+          if(channels[c] >= 0)
+            rgba[i * 4 + c] = src[channels[c]][i];
+          else if(c < 3)    // RGB channels default to 0
+            rgba[i * 4 + c] = 0.0f;
+          else    // alpha defaults to 1
+            rgba[i * 4 + c] = 1.0f;
+        }
+      }
+    }
+    else if(exrImage.tiles != NULL)
+    {
+      // tiled image
+      const int fullTileWidth = exrHeader.tile_size_x;
+      const int fullTileHeight = exrHeader.tile_size_y;
+      for(int idx = 0; idx < exrImage.num_tiles; idx++)
+      {
+        const EXRTile &tile = exrImage.tiles[idx];
+        const int thisTileWidth = tile.width;
+        const int thisTileHeight = tile.height;
+        float **src = (float **)tile.images;
+        float *rgba_tile =
+            rgba +
+            (tile.offset_y * fullTileHeight * exrImage.width + tile.offset_x * fullTileWidth) * 4;
+
+        for(int y = 0; y < thisTileHeight; y++)
+        {
+          const float *src_row[4] = {NULL, NULL, NULL, NULL};
+          if(channels[0] >= 0)
+            src_row[0] = src[channels[0]] + y * fullTileWidth;
+          if(channels[1] >= 0)
+            src_row[1] = src[channels[1]] + y * fullTileWidth;
+          if(channels[2] >= 0)
+            src_row[2] = src[channels[2]] + y * fullTileWidth;
+          if(channels[3] >= 0)
+            src_row[3] = src[channels[3]] + y * fullTileWidth;
+          float *rgba_row = rgba_tile + y * exrImage.width * 4;
+          for(int x = 0; x < thisTileWidth; x++)
+          {
+            for(int c = 0; c < 4; c++)
+            {
+              if(src_row[c] != NULL)
+                rgba_row[x * 4 + c] = src_row[c][x];
+              else if(c < 3)    // RGB channels default to 0
+                rgba_row[x * 4 + c] = 0.0f;
+              else    // alpha defaults to 1
+                rgba_row[x * 4 + c] = 1.0f;
+            }
+          }
+        }
       }
     }
 
