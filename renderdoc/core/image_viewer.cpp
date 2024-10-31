@@ -774,24 +774,23 @@ void ImageViewer::RefreshFile()
       }
     }
 
-    float *rgba = (float *)data;
-
     if(exrImage.images != NULL)
     {
       // scanline image
-      float **src = (float **)exrImage.images;
+      const float **src = (const float **)exrImage.images;
+      const float *srcR = channels[0] >= 0 ? src[channels[0]] : NULL;
+      const float *srcG = channels[1] >= 0 ? src[channels[1]] : NULL;
+      const float *srcB = channels[2] >= 0 ? src[channels[2]] : NULL;
+      const float *srcA = channels[3] >= 0 ? src[channels[3]] : NULL;
 
-      for(uint32_t i = 0; i < texDetails.width * texDetails.height; i++)
+      float *rgba_dst = (float *)data;
+      for(uint32_t i = 0, n = texDetails.width * texDetails.height; i < n; i++)
       {
-        for(int c = 0; c < 4; c++)
-        {
-          if(channels[c] >= 0)
-            rgba[i * 4 + c] = src[channels[c]][i];
-          else if(c < 3)    // RGB channels default to 0
-            rgba[i * 4 + c] = 0.0f;
-          else    // alpha defaults to 1
-            rgba[i * 4 + c] = 1.0f;
-        }
+        rgba_dst[0] = srcR ? srcR[i] : 0.0f;
+        rgba_dst[1] = srcG ? srcG[i] : 0.0f;
+        rgba_dst[2] = srcB ? srcB[i] : 0.0f;
+        rgba_dst[3] = srcA ? srcA[i] : 1.0f;
+        rgba_dst += 4;
       }
     }
     else if(exrImage.tiles != NULL)
@@ -806,32 +805,23 @@ void ImageViewer::RefreshFile()
         const int thisTileHeight = tile.height;
         float **src = (float **)tile.images;
         float *rgba_tile =
-            rgba +
+            (float *)data +
             (tile.offset_y * fullTileHeight * exrImage.width + tile.offset_x * fullTileWidth) * 4;
 
         for(int y = 0; y < thisTileHeight; y++)
         {
-          const float *src_row[4] = {NULL, NULL, NULL, NULL};
-          if(channels[0] >= 0)
-            src_row[0] = src[channels[0]] + y * fullTileWidth;
-          if(channels[1] >= 0)
-            src_row[1] = src[channels[1]] + y * fullTileWidth;
-          if(channels[2] >= 0)
-            src_row[2] = src[channels[2]] + y * fullTileWidth;
-          if(channels[3] >= 0)
-            src_row[3] = src[channels[3]] + y * fullTileWidth;
-          float *rgba_row = rgba_tile + y * exrImage.width * 4;
+          const float *srcR = channels[0] >= 0 ? src[channels[0]] + y * fullTileWidth : NULL;
+          const float *srcG = channels[1] >= 0 ? src[channels[1]] + y * fullTileWidth : NULL;
+          const float *srcB = channels[2] >= 0 ? src[channels[2]] + y * fullTileWidth : NULL;
+          const float *srcA = channels[3] >= 0 ? src[channels[3]] + y * fullTileWidth : NULL;
+          float *rgba_dst = rgba_tile + y * exrImage.width * 4;
           for(int x = 0; x < thisTileWidth; x++)
           {
-            for(int c = 0; c < 4; c++)
-            {
-              if(src_row[c] != NULL)
-                rgba_row[x * 4 + c] = src_row[c][x];
-              else if(c < 3)    // RGB channels default to 0
-                rgba_row[x * 4 + c] = 0.0f;
-              else    // alpha defaults to 1
-                rgba_row[x * 4 + c] = 1.0f;
-            }
+            rgba_dst[0] = srcR ? srcR[x] : 0.0f;
+            rgba_dst[1] = srcG ? srcG[x] : 0.0f;
+            rgba_dst[2] = srcB ? srcB[x] : 0.0f;
+            rgba_dst[3] = srcA ? srcA[x] : 1.0f;
+            rgba_dst += 4;
           }
         }
       }
