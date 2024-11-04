@@ -637,6 +637,7 @@ void ImageViewer::RefreshFile()
   size_t datasize = 0;
 
   bool dds = false;
+  read_tex_data read_data = {};
   byte headerBuffer[4];
   const size_t headerSize = FileIO::fread(headerBuffer, 1, 4, f);
 
@@ -748,15 +749,32 @@ void ImageViewer::RefreshFile()
       return;
     }
 
-    datasize = size_t(texDetails.width) * size_t(texDetails.height) * 4 * sizeof(float);
-    data = (byte *)malloc(datasize);
-
-    if(!data)
+    size_t totalSize = size_t(texDetails.width) * size_t(texDetails.height) * 4 * sizeof(float);
+    read_data.width = texDetails.width;
+    read_data.height = texDetails.height;
+    read_data.format = texDetails.format;
+    read_data.depth = 1;
+    read_data.slices = 1;
+    read_data.mips = 1;
+    read_data.subresources.push_back({0, totalSize});
+    // Support mipmaps in EXR, if the tile rounding mode matches the graphics APIs (rounding
+    // down for odd sizes).
+    if(exrImage.images == NULL && exrImage.tiles != NULL &&
+       exrHeader.tile_level_mode == TINYEXR_TILE_MIPMAP_LEVELS &&
+       exrHeader.tile_rounding_mode == TINYEXR_TILE_ROUND_DOWN)
     {
-      SET_ERROR_RESULT(m_Error, ResultCode::OutOfMemory,
-                       "Allocation for %zu bytes failed for EXR data", datasize);
-      return;
+      const EXRImage *exrLevel = exrImage.next_level;
+      while(exrLevel != NULL)
+      {
+        size_t mipSize = size_t(exrLevel->width) * size_t(exrLevel->height) * 4 * sizeof(float);
+        read_data.subresources.push_back({totalSize, mipSize});
+        totalSize += mipSize;
+        read_data.mips++;
+        exrLevel = exrLevel->next_level;
+      }
     }
+    texDetails.mips = read_data.mips;
+    read_data.buffer.resize(totalSize);
 
     // Expect R/G/B/A channel names as first char of the string, or
     // after the last '.' char.
@@ -783,7 +801,7 @@ void ImageViewer::RefreshFile()
       const float *srcB = channels[2] >= 0 ? src[channels[2]] : NULL;
       const float *srcA = channels[3] >= 0 ? src[channels[3]] : NULL;
 
-      float *rgba_dst = (float *)data;
+      float *rgba_dst = (float *)read_data.buffer.data();
       for(uint32_t i = 0, n = texDetails.width * texDetails.height; i < n; i++)
       {
         rgba_dst[0] = srcR ? srcR[i] : 0.0f;
@@ -798,30 +816,35 @@ void ImageViewer::RefreshFile()
       // tiled image
       const int fullTileWidth = exrHeader.tile_size_x;
       const int fullTileHeight = exrHeader.tile_size_y;
-      for(int idx = 0; idx < exrImage.num_tiles; idx++)
-      {
-        const EXRTile &tile = exrImage.tiles[idx];
-        const int thisTileWidth = tile.width;
-        const int thisTileHeight = tile.height;
-        float **src = (float **)tile.images;
-        float *rgba_tile =
-            (float *)data +
-            (tile.offset_y * fullTileHeight * exrImage.width + tile.offset_x * fullTileWidth) * 4;
+      const EXRImage *exrLevel = &exrImage;
 
-        for(int y = 0; y < thisTileHeight; y++)
+      for(uint32_t mip = 0; mip < read_data.mips; mip++, exrLevel = exrLevel->next_level)
+      {
+        for(int idx = 0; idx < exrLevel->num_tiles; idx++)
         {
-          const float *srcR = channels[0] >= 0 ? src[channels[0]] + y * fullTileWidth : NULL;
-          const float *srcG = channels[1] >= 0 ? src[channels[1]] + y * fullTileWidth : NULL;
-          const float *srcB = channels[2] >= 0 ? src[channels[2]] + y * fullTileWidth : NULL;
-          const float *srcA = channels[3] >= 0 ? src[channels[3]] + y * fullTileWidth : NULL;
-          float *rgba_dst = rgba_tile + y * exrImage.width * 4;
-          for(int x = 0; x < thisTileWidth; x++)
+          const EXRTile &tile = exrLevel->tiles[idx];
+          const int thisTileWidth = tile.width;
+          const int thisTileHeight = tile.height;
+          float **src = (float **)tile.images;
+          float *rgba_tile =
+              (float *)(read_data.buffer.data() + read_data.subresources[mip].first) +
+              (tile.offset_y * fullTileHeight * exrLevel->width + tile.offset_x * fullTileWidth) * 4;
+
+          for(int y = 0; y < thisTileHeight; y++)
           {
-            rgba_dst[0] = srcR ? srcR[x] : 0.0f;
-            rgba_dst[1] = srcG ? srcG[x] : 0.0f;
-            rgba_dst[2] = srcB ? srcB[x] : 0.0f;
-            rgba_dst[3] = srcA ? srcA[x] : 1.0f;
-            rgba_dst += 4;
+            const float *srcR = channels[0] >= 0 ? src[channels[0]] + y * fullTileWidth : NULL;
+            const float *srcG = channels[1] >= 0 ? src[channels[1]] + y * fullTileWidth : NULL;
+            const float *srcB = channels[2] >= 0 ? src[channels[2]] + y * fullTileWidth : NULL;
+            const float *srcA = channels[3] >= 0 ? src[channels[3]] + y * fullTileWidth : NULL;
+            float *rgba_dst = rgba_tile + y * exrLevel->width * 4; 
+            for(int x = 0; x < thisTileWidth; x++)
+            {
+              rgba_dst[0] = srcR ? srcR[x] : 0.0f;
+              rgba_dst[1] = srcG ? srcG[x] : 0.0f;
+              rgba_dst[2] = srcB ? srcB[x] : 0.0f;
+              rgba_dst[3] = srcA ? srcA[x] : 1.0f;
+              rgba_dst += 4;
+            }
           }
         }
       }
@@ -832,7 +855,6 @@ void ImageViewer::RefreshFile()
     // shouldn't get here but let's be safe
     if(ret != 0)
     {
-      free(data);
       SET_ERROR_RESULT(m_Error, ResultCode::ImageUnsupported,
                        "EXR file detected, but failed during parsing");
       FileIO::fclose(f);
@@ -888,7 +910,7 @@ void ImageViewer::RefreshFile()
 
   // if we don't have data at this point (and we're not a dds file) then the
   // file was corrupted and we failed to load it
-  if(!dds && data == NULL)
+  if(!dds && data == NULL && read_data.buffer.isEmpty())
   {
     SET_ERROR_RESULT(m_Error, ResultCode::ImageUnsupported, "Image failed to load");
     FileIO::fclose(f);
@@ -897,9 +919,7 @@ void ImageViewer::RefreshFile()
 
   m_FrameRecord.frameInfo.initDataSize = 0;
   m_FrameRecord.frameInfo.persistentSize = 0;
-  m_FrameRecord.frameInfo.uncompressedFileSize = datasize;
-
-  read_tex_data read_data = {};
+  m_FrameRecord.frameInfo.uncompressedFileSize = RDCMAX(datasize, read_data.buffer.size());
 
   if(dds)
   {
@@ -984,7 +1004,7 @@ void ImageViewer::RefreshFile()
   m_TexDetails.resourceId = m_TextureID;
   m_TexDetails.byteSize = fileSize;
 
-  if(!dds)
+  if(data != NULL)
   {
     m_Proxy->SetProxyTextureData(m_TextureID, Subresource(), data, datasize);
     free(data);
