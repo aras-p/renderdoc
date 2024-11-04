@@ -2178,7 +2178,10 @@ void MainWindow::OnCaptureLoaded()
 
   statusProgress->setVisible(false);
 
-  ui->action_Recompress_Capture->setEnabled(true);
+  // don't allow capture recompress on opened images
+  QString driver = m_Ctx.Replay().GetCaptureAccess()->DriverName();
+  bool is_image = driver == lit("Image");
+  ui->action_Recompress_Capture->setEnabled(!is_image);
 
   ui->action_Start_Replay_Loop->setEnabled(true);
   ui->action_Open_RGP_Profile->setEnabled(
