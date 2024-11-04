@@ -33,18 +33,14 @@
 #include "zstdio.h"
 
 // not provided by tinyexr, just do by hand
-bool is_exr_file(FILE *f)
+bool is_exr_file(const byte *headerBuffer, size_t size)
 {
-  FileIO::fseek64(f, 0, SEEK_SET);
-
+  if(size < 4)
+  {
+    return false;
+  }
   const uint32_t openexr_magic = MAKE_FOURCC(0x76, 0x2f, 0x31, 0x01);
-
-  uint32_t magic = 0;
-  size_t bytesRead = FileIO::fread(&magic, 1, sizeof(magic), f);
-
-  FileIO::fseek64(f, 0, SEEK_SET);
-
-  return bytesRead == sizeof(magic) && magic == openexr_magic;
+  return memcmp(headerBuffer, &openexr_magic, 4) == 0;
 }
 
 /*
@@ -275,10 +271,7 @@ void RDCFile::Open(const rdcstr &path)
     byte headerBuffer[4];
     const size_t headerSize = FileIO::fread(headerBuffer, 1, 4, m_File);
 
-    if(is_dds_file(headerBuffer, headerSize))
-      ret = x = y = comp = 1;
-
-    if(is_exr_file(m_File))
+    if(is_dds_file(headerBuffer, headerSize) || is_exr_file(headerBuffer, headerSize))
       ret = x = y = comp = 1;
 
     FileIO::fseek64(m_File, 0, SEEK_SET);

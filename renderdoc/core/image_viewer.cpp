@@ -433,7 +433,7 @@ RDResult IMG_CreateReplayDevice(RDCFile *rdc, IReplayDriver **driver)
   FileIO::fseek64(f, 0, SEEK_SET);
 
   // make sure the file is a type we recognise before going further
-  if(is_exr_file(f))
+  if(is_exr_file(headerBuffer, headerSize))
   {
     FileIO::fseek64(f, 0, SEEK_END);
     uint64_t size = FileIO::ftell64(f);
@@ -645,7 +645,7 @@ void ImageViewer::RefreshFile()
   uint64_t fileSize = FileIO::ftell64(f);
   FileIO::fseek64(f, 0, SEEK_SET);
 
-  if(is_exr_file(f))
+  if(is_exr_file(headerBuffer, headerSize))
   {
     texDetails.format = rgba32_float;
 

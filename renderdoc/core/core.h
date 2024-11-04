@@ -42,7 +42,7 @@ struct ReplayOptions;
 struct SDObject;
 
 // not provided by tinyexr, just do by hand
-bool is_exr_file(FILE *f);
+bool is_exr_file(const byte *headerBuffer, size_t size);
 void LogReplayOptions(const ReplayOptions &opts);
 
 enum class RDCDriver : uint32_t;

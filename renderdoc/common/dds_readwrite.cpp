@@ -952,7 +952,7 @@ RDResult write_dds_to_file(FILE *f, const write_tex_data &data)
   return RDResult();
 }
 
-bool is_dds_file(byte *headerBuffer, size_t size)
+bool is_dds_file(const byte *headerBuffer, size_t size)
 {
   if(size < 4)
   {
