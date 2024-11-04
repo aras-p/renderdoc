@@ -1226,7 +1226,7 @@ ResultDetails ReplayController::SaveTexture(const TextureSave &saveData, const r
   {
     if(sd.destType == FileType::DDS)
     {
-      write_dds_data ddsData;
+      write_tex_data ddsData;
 
       ResourceFormat saveFmt = td.format;
       // use typeCast to inform typeless saving, otherwise it will get lost

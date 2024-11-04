@@ -54,7 +54,7 @@ struct RDCThumbnailProvider : public IThumbnailProvider, IInitializeWithStream
   unsigned int m_iRefcount;
   bool m_Inited;
   RDCThumb m_Thumb;
-  read_dds_data m_ddsData;
+  read_tex_data m_ddsData;
 
   RDCThumbnailProvider() : m_iRefcount(1), m_Inited(false) { InterlockedIncrement(&numProviders); }
   virtual ~RDCThumbnailProvider() { InterlockedDecrement(&numProviders); }

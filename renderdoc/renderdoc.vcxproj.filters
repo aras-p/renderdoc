@@ -570,6 +570,9 @@
     <ClInclude Include="replay\common\var_dispatch_helpers.h">
       <Filter>Replay\Common</Filter>
     </ClInclude>
+    <ClInclude Include="common\tex_data.h">
+      <Filter>Common\File Formats</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="maths\camera.cpp">

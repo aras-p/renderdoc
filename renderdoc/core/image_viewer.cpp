@@ -395,7 +395,7 @@ public:
   void FileChanged() { RefreshFile(); }
 private:
   void RefreshFile();
-  void CreateProxyTexture(TextureDescription &texDetails, read_dds_data &read_data);
+  void CreateProxyTexture(TextureDescription &texDetails, read_tex_data &read_data);
 
   APIProperties m_Props;
   FrameRecord m_FrameRecord;
@@ -515,7 +515,7 @@ RDResult IMG_CreateReplayDevice(RDCFile *rdc, IReplayDriver **driver)
   {
     FileIO::fseek64(f, 0, SEEK_SET);
     StreamReader reader(f);
-    read_dds_data read_data = {};
+    read_tex_data read_data = {};
     RDResult res = load_dds_from_file(&reader, read_data);
     f = NULL;
 
@@ -899,7 +899,7 @@ void ImageViewer::RefreshFile()
   m_FrameRecord.frameInfo.persistentSize = 0;
   m_FrameRecord.frameInfo.uncompressedFileSize = datasize;
 
-  read_dds_data read_data = {};
+  read_tex_data read_data = {};
 
   if(dds)
   {
@@ -1003,7 +1003,7 @@ void ImageViewer::RefreshFile()
     FileIO::fclose(f);
 }
 
-void ImageViewer::CreateProxyTexture(TextureDescription &texDetails, read_dds_data &read_data)
+void ImageViewer::CreateProxyTexture(TextureDescription &texDetails, read_tex_data &read_data)
 {
   if(m_Proxy->IsTextureSupported(texDetails))
   {

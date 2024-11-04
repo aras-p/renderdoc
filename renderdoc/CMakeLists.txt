@@ -132,6 +132,7 @@ set(sources
     common/result.h
     common/shader_cache.h
     common/jobsystem.cpp
+    common/tex_data.h
     common/threading.h
     common/timing.h
     common/wrapped_pool.h

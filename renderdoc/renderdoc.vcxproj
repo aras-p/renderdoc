@@ -202,6 +202,7 @@
     <ClInclude Include="common\globalconfig.h" />
     <ClInclude Include="common\result.h" />
     <ClInclude Include="common\shader_cache.h" />
+    <ClInclude Include="common\tex_data.h" />
     <ClInclude Include="common\threading.h" />
     <ClInclude Include="common\timing.h" />
     <ClInclude Include="common\wrapped_pool.h" />

@@ -673,7 +673,7 @@ DXGI_FORMAT ResourceFormat2DXGIFormat(ResourceFormat format)
   return DXGI_FORMAT_UNKNOWN;
 }
 
-RDResult write_dds_to_file(FILE *f, const write_dds_data &data)
+RDResult write_dds_to_file(FILE *f, const write_tex_data &data)
 {
   if(!f)
     return RDResult(ResultCode::InvalidParameter, "Missing file handle writing DDS file");
@@ -961,7 +961,7 @@ bool is_dds_file(byte *headerBuffer, size_t size)
   return memcmp(headerBuffer, &dds_fourcc, 4) == 0;
 }
 
-RDResult load_dds_from_file(StreamReader *reader, read_dds_data &ret)
+RDResult load_dds_from_file(StreamReader *reader, read_tex_data &ret)
 {
   uint64_t fileSize = reader->GetSize();
 
